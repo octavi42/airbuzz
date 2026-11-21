@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AirBuzz: your Fitbit Air buzzes when your iPhone does</title>
+<meta name="description" content="AirBuzz makes your Fitbit Air vibrate for the iPhone notifications you pick. Free beta on TestFlight.">
+<meta name="theme-color" content="#f8f8f8">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta property="og:title" content="AirBuzz">
+<meta property="og:description" content="Your Fitbit Air buzzes when your iPhone does. Free beta on TestFlight.">
+<meta property="og:image" content="https://octavi42.github.io/airbuzz/assets/og.jpg">
+<meta property="og:url" content="https://octavi42.github.io/airbuzz/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="assets/reel/d/f001.jpg" as="image" fetchpriority="high">
+<link rel="preload" href="assets/Inter-700.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/Inter-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Inter"; src: url("assets/Inter-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+:root {
+  --set: #f8f8f8;
+  --set-deep: #efefef;
+  --ink: #111111;
+  --ink-2: #6e6e73;
+  --line: #e2e2e4;
+  --gutter: clamp(16px, 4vw, 48px);
+  --ease: cubic-bezier(.22, .9, .25, 1);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--set); color: var(--ink);
+  font: 400 18px/1.5 "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased; overflow-x: hidden;
+}
+a { color: inherit; }
+img, video, canvas { display: block; max-width: 100%; }
+
+/* Type, as in the film: display 700, -2% tracking, 1.05 leading */
+.display { font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; margin: 0; text-wrap: balance; }
+.d1 { font-size: clamp(40px, 4.6vw, 80px); }
+.d2 { font-size: clamp(34px, 4.6vw, 72px); }
+.d3 { font-size: clamp(30px, 3.4vw, 52px); }
+.muted { color: var(--ink-2); }
+.body { font-size: clamp(17px, 1.35vw, 20px); color: var(--ink-2); max-width: 30em; margin: 20px 0 0; text-wrap: pretty; }
+
+/* Mask wipe from below, the film's text entrance */
+.wipe { display: block; overflow: hidden; padding-bottom: .08em; margin-bottom: -.08em; }
+.wipe > span { display: block; transform: translateY(105%); transition: transform 900ms var(--ease); }
+.in .wipe > span { transform: none; }
+.in .wipe:nth-child(2) > span { transition-delay: 120ms; }
+.in .wipe:nth-child(3) > span { transition-delay: 240ms; }
+.fade { opacity: 0; transform: translateY(14px); transition: opacity 700ms var(--ease) 300ms, transform 700ms var(--ease) 300ms; }
+.in .fade { opacity: 1; transform: none; }
+
+/* CTA capsule from the end card */
+.cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  height: 56px; padding: 0 30px; border-radius: 28px; border: 0; cursor: pointer;
+  background: linear-gradient(180deg, #2b2b2b, #111); color: #fff;
+  font: 700 18px/1 "Inter", sans-serif; letter-spacing: -0.01em; text-decoration: none;
+  box-shadow: 0 1px 0 rgba(255,255,255,.12) inset, 0 10px 24px -12px rgba(0,0,0,.45);
+  transition: transform 180ms var(--ease), box-shadow 180ms var(--ease);
+}
+.cta:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.12) inset, 0 14px 28px -12px rgba(0,0,0,.5); }
+.cta:active { transform: scale(.98); }
+.cta:focus-visible, .ghost:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.cta.sm { height: 40px; padding: 0 18px; border-radius: 20px; font-size: 15px; }
+.sub { margin: 14px 0 0; font-size: 15px; color: var(--ink-2); }
+
+/* Nav */
+.nav {
+  position: absolute; inset: 0 0 auto; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: max(16px, env(safe-area-inset-top)) var(--gutter) 0;
+  height: 76px;
+}
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+.brand img { width: 34px; height: 34px; border-radius: 8px; box-shadow: 0 4px 12px -4px rgba(0,0,0,.25); }
+
+/* Hero: the stage sticks while the track scrolls past. Scrolling scrubs the film's glide on a canvas: the phone starts
+   tilted with its screen off and turns to face front, then its screen wakes into the real app while the words change.
+   The scene is laid out in the film's own pixels (1600 x 916) and JS scales it as one piece, so the band layer,
+   the rings and the app on the phone's screen stay pinned to the picture at any size. */
+.hero { position: relative; height: 760vh; background: var(--set); }
+.hero.static { height: auto; }
+.stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; display: grid; }
+.hero .media { overflow: hidden; }
+.scene { position: absolute; left: 0; top: 0; width: 1600px; height: 916px; transform-origin: 0 0;
+  /* the frame's edges fade into the page; the phone stays between y 64 and 806 */
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 56px, #000 calc(100% - 80px), transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 56px, #000 calc(100% - 80px), transparent); }
+.scene > * { position: absolute; }
+.scene .reel { left: 0; top: 0; width: 1600px; height: 916px; }
+/* The band layer and the lit screen exist only on the glide's last frame, where they line up with the picture */
+.scene:not(.end) .band, .scene:not(.end) .waves { visibility: hidden; }
+/* The band, cut from the last frame with soft edges, so it can shake on a buzz */
+.scene .band {
+  left: 186px; top: 314px; width: 228px; height: 512px;
+  background: 0 0 / 1600px 916px no-repeat; background-position: -186px -314px; transform-origin: 50% 96%;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent), linear-gradient(transparent, #000 14px, #000 calc(100% - 14px), transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent), linear-gradient(transparent, #000 14px, #000 calc(100% - 14px), transparent);
+  mask-composite: intersect;
+}
+.scene .band.buzz { animation: shake 107ms linear 15; }
+@keyframes shake {
+  0%, 100% { transform: none; }
+  25% { transform: translate(-2.4px, .4px) rotate(-.35deg); }
+  50% { transform: translate(1.8px, -.3px) rotate(.25deg); }
+  75% { transform: translate(-1.2px, .3px) rotate(-.15deg); }
+}
+/* The buzz: the film's ripple, three halftone dot waves leaving the band (drawn by JS in frame px) */
+.scene .waves { left: 0; top: 240px; width: 640px; height: 676px; pointer-events: none; }
+/* The app, set into the phone's screen. Off: see-through, so the film's black glass shows. On: it wakes like a real
+   screen, a quick fade with the picture settling from slightly zoomed. Off again is instant-ish. */
+.scene .screen { left: 1156px; top: 76px; width: 295px; height: 708px; border-radius: 45px; overflow: hidden; background: #fff;
+  opacity: 0; filter: brightness(.35); transition: opacity 140ms linear, filter 140ms linear; }
+.scene .screen.lit { opacity: 1; filter: none; transition: opacity 520ms var(--ease) 80ms, filter 900ms var(--ease) 80ms; }
+.screen > video, .screen > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0;
+  transform: scale(1.07); transition: opacity 450ms var(--ease), transform 150ms linear; }
+.screen.lit > video, .screen.lit > img { transform: none; transition: opacity 450ms var(--ease), transform 1100ms var(--ease) 80ms; }
+.screen > .on { opacity: 1; }
+.screen::after {
+  content: ""; position: absolute; z-index: 1; left: 50%; top: 10px; width: 98px; height: 29px;
+  transform: translateX(-50%); border-radius: 999px; background: #050505;
+}
+/* Desktop: the words sit in the gap between band and phone. JS keeps the gap centred and sizes the words to it (--gap-x, --gap-w). */
+.hero-copy { position: relative; z-index: 2; display: grid; }
+@media (min-width: 861px) {
+  .hero .media { position: absolute; inset: 0; -webkit-mask-image: linear-gradient(180deg, #000 76%, transparent); mask-image: linear-gradient(180deg, #000 76%, transparent); }
+  .hero-copy { position: absolute; top: 0; bottom: 0; left: var(--gap-x, 30vw); width: var(--gap-w, 40vw); align-content: center; text-align: center; }
+  .hero-copy .display { font-size: var(--gap-fs, clamp(40px, 4.6vw, 80px)); }
+  .hero-copy .wipe > span { white-space: nowrap; }
+}
+.beat { grid-area: 1 / 1; align-self: center; }
+/* One beat at a time: the old lines leave first, the new ones come in after them, so they never cross. */
+.beat .wipe > span { transform: translateY(105%); transition: transform 380ms cubic-bezier(.5, 0, .75, 0); }
+.beat.on .wipe > span { transform: none; transition: transform 850ms var(--ease) 360ms; }
+.beat.on .wipe:nth-child(2) > span { transition-delay: 460ms; }
+.beat.on .wipe:nth-child(3) > span { transition-delay: 560ms; }
+.beat.first .wipe > span { transition-delay: 0ms; }
+.beat.off .wipe > span { transform: translateY(-105%); }
+.beat .fade { transition-delay: 0ms; }
+.beat .fade { transition-duration: 300ms; }
+.beat.on .fade { opacity: 1; transform: none; transition-duration: 700ms; transition-delay: 760ms; }
+.beat:not(.on) .fade { pointer-events: none; }
+.hero-copy .cta { margin-top: 34px; }
+.hint {
+  position: absolute; z-index: 2; left: 50%; bottom: max(28px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2);
+  transition: opacity 400ms var(--ease);
+}
+.hint i { width: 1px; height: 36px; background: linear-gradient(var(--ink-2), transparent); transform-origin: top; animation: drip 1.8s var(--ease) infinite; }
+@keyframes drip { 0% { transform: scaleY(0); opacity: 1; } 70% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+.hint.gone { opacity: 0; }
+
+/* Try it: the mark, live */
+.try { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: clamp(64px, 8vw, 110px) var(--gutter); text-align: center; background: linear-gradient(180deg, var(--set), #fff 50%, var(--set)); }
+/* In the hero, the button sits on the pinned stage and fades in as band, phone and words fade out */
+.stage > .try { position: absolute; inset: 0; z-index: 3; min-height: 0; opacity: 0; pointer-events: none; transition: opacity 320ms var(--ease); }
+.stage .media, .stage .hero-copy { transition: opacity 380ms var(--ease) 260ms; }
+.stage.swap .media, .stage.swap .hero-copy { opacity: 0; transition-delay: 0ms; }
+.stage.swap > .try { opacity: 1; transition: opacity 520ms var(--ease) 300ms; }
+.stage > .try.live { pointer-events: auto; }
+.field-wrap { position: relative; width: min(600px, 96vw, 62svh); aspect-ratio: 1; margin: clamp(10px, 3vw, 30px) auto 0; }
+.field-wrap canvas { width: 100%; height: 100%; }
+.field-hit {
+  position: absolute; inset: 22%; border-radius: 50%; border: 0; background: transparent; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.field-hit:focus-visible { outline: 2px solid var(--ink); outline-offset: 6px; }
+.try .sub { margin-top: 6px; }
+
+/* Follow the build */
+.social { display: flex; justify-content: center; gap: 10px; margin-top: clamp(24px, 3vw, 36px); }
+.social a {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 20px;
+  border: 1px solid var(--line); background: #fff; text-decoration: none; font-size: 15px; font-weight: 700; color: var(--ink);
+  transition: transform 200ms var(--ease), border-color 200ms var(--ease);
+}
+.social a:hover { transform: translateY(-1px); border-color: var(--ink-2); }
+.social svg { width: 16px; height: 16px; fill: currentColor; }
+
+/* The popup the button opens: an email for the beta link */
+.pop {
+  width: min(440px, calc(100vw - 32px)); padding: 34px 28px 22px; border: 0; border-radius: 28px; background: #fff; color: var(--ink);
+  text-align: center; box-shadow: 0 40px 80px -30px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.06);
+}
+.pop::backdrop { background: rgba(248,248,248,.6); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.pop[open] { animation: pop-in 420ms var(--ease); }
+.pop[open]::backdrop { animation: fade-in 300ms var(--ease); }
+@keyframes pop-in { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+@keyframes fade-in { from { opacity: 0; } }
+.pop-x { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; font-size: 24px; line-height: 1; color: var(--ink-2); cursor: pointer; }
+.pop-x:hover { background: var(--set); color: var(--ink); }
+.pop-title { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.pop-text { margin: 10px 0 22px; font-size: 15px; color: var(--ink-2); }
+.pop > .cta { margin-bottom: 18px; }
+.pop form { display: flex; gap: 8px; padding: 6px; border-radius: 32px; background: var(--set); border: 1px solid var(--line); }
+.pop input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 0 14px; height: 44px; font: 400 16px "Inter", sans-serif; color: var(--ink); }
+.pop input:focus-visible { outline: none; }
+.pop form:focus-within { border-color: var(--ink-2); background: #fff; }
+.pop input::placeholder { color: #9a9aa0; }
+.pop form .cta { height: 44px; padding: 0 20px; border-radius: 22px; font-size: 15px; border: 0; cursor: pointer; }
+.pop .done { margin: 12px 0 0; font-size: 15px; }
+.pop .done:empty { display: none; }
+
+/* Hero step lines */
+.hero-copy .body { margin: 18px auto 0; font-size: clamp(16px, 1.15vw, 19px); max-width: 26em; }
+
+footer {
+  display: flex; flex-wrap: wrap; justify-content: center; text-align: center; gap: 12px 28px;
+  padding: 28px var(--gutter) max(28px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line);
+  font-size: 14px; color: var(--ink-2);
+}
+/* At the very end the footer slides up into the pinned stage, under the button */
+.stage > footer { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; background: var(--set); transform: translateY(101%); }
+
+/* Phones: a portrait shot. The words sit at the top, the phone fills the rest of the screen under them, and the
+   camera starts on the band and pans to the phone as it turns and wakes (JS sets the scale and the pan). */
+@media (max-width: 860px) {
+  .hero { height: 720vh; }
+  .stage { display: block; }
+  .hero .media { position: absolute; inset: 0; }
+  .scene .waves { display: none; }
+  .hero-copy { position: absolute; z-index: 2; left: 0; right: 0; top: 0; margin: 0; text-align: center;
+    padding: max(30px, env(safe-area-inset-top)) var(--gutter) 22px; }
+  .hero-copy .display { font-size: clamp(30px, 8.6vw, 40px); }
+  .hero-copy .body { font-size: 15px; margin-top: 12px; max-width: 24em; }
+  .hint { display: none; }
+  .hero-copy .cta { margin-top: 28px; }
+  .nav .cta { display: none; }
+  .nav { justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .wipe > span, .fade, .beat.on .wipe > span { transform: none; opacity: 1; transition: none; }
+  .beat:not(.on) { visibility: hidden; }
+}
+</style>
+</head>
+<body>
+
+
+<main id="top">
+  <section class="hero" id="hero" aria-label="AirBuzz">
+    <div class="stage">
+      <div class="media" aria-hidden="true">
+        <div class="scene" id="scene">
+          <canvas class="reel" width="1600" height="916"></canvas>
+          <div class="band"></div>
+          <canvas class="waves" width="640" height="676"></canvas>
+          <div class="screen">
+            <video class="on" data-shot="tap" src="assets/ui-02-tap-buzz.mp4" poster="assets/ui-02-tap-buzz.jpg" muted loop playsinline preload="auto"></video>
+            <video data-shot="pick" src="assets/ui-04-pick-whatsapp.mp4" poster="assets/ui-04-pick-whatsapp.jpg" muted loop playsinline preload="auto"></video>
+            <img data-shot="copied" src="assets/ui-05c-copied.jpg" alt="" loading="lazy">
+          </div>
+        </div>
+      </div>
+      <div class="hero-copy">
+        <p class="beat display d1">
+          <span class="wipe"><span>Your Fitbit Air</span></span>
+          <span class="wipe"><span>has no screen.</span></span>
+        </p>
+        <p class="beat display d1">
+          <span class="wipe"><span>So your messages</span></span>
+          <span class="wipe"><span>never reach</span></span>
+          <span class="wipe"><span>your wrist.</span></span>
+        </p>
+        <div class="beat">
+          <p class="display d1">
+            <span class="wipe"><span>Tap to buzz.</span></span>
+          </p>
+          <p class="body fade">Press the big button and your band pulses. Pick Single or Double, so you can tell it apart.</p>
+        </div>
+        <div class="beat">
+          <p class="display d1">
+            <span class="wipe"><span>Or buzz on every</span></span>
+            <span class="wipe"><span>notification.</span></span>
+          </p>
+          <p class="body fade">Pick any app, or just the ones that matter. AirBuzz writes the Shortcuts prompt for you.</p>
+        </div>
+        <div class="beat">
+          <p class="display d1">
+            <span class="wipe"><span>Set up once</span></span>
+            <span class="wipe"><span>in Shortcuts.</span></span>
+          </p>
+          <p class="body fade">Paste the prompt into a Notification automation. From then on, that app buzzes your wrist.</p>
+        </div>
+        <div class="beat">
+          <h1 class="display d1">
+            <span class="wipe"><span>Your Air buzzes</span></span>
+            <span class="wipe"><span>when your</span></span>
+            <span class="wipe"><span>iPhone does.</span></span>
+          </h1>
+        </div>
+      </div>
+      <div class="hint" id="hint" aria-hidden="true">Scroll<i></i></div>
+      <section class="try" id="try" aria-label="Try the buzz button">
+        <h2 class="display d3"><span class="wipe"><span>This is the button.</span></span></h2>
+        <div class="field-wrap fade">
+          <canvas id="field" aria-hidden="true"></canvas>
+          <button class="field-hit" id="field-hit" aria-label="Tap to buzz and join the beta" aria-haspopup="dialog"></button>
+        </div>
+        <p class="sub fade">Tap it. In the app, your band feels this.</p>
+        <nav class="social fade" aria-label="Follow the build">
+          <a href="https://github.com/octavi42" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>GitHub</a>
+          <a href="https://x.com/octavicristea" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.75 2h3.4l-7.43 8.5L22.5 22h-6.84l-5.36-7-6.13 7H.76l7.95-9.09L.3 2h7.01l4.84 6.4L17.75 2Zm-1.2 18h1.89L6.32 3.9H4.3L16.55 20Z"/></svg>X</a>
+        </nav>
+      </section>
+      <footer id="foot">
+        <span>AirBuzz is an independent app, not made by or affiliated with Google or Fitbit.</span>
+      </footer>
+    </div>
+  </section>
+
+
+  <dialog class="pop" id="pop" aria-labelledby="pop-title">
+    <button class="pop-x" type="button" aria-label="Close" data-close>&times;</button>
+    <p class="pop-title" id="pop-title">Get AirBuzz</p>
+    <p class="pop-text" data-notify-label>The TestFlight beta opens soon. Get the link by email.</p>
+    <a class="cta" data-beta data-beta-end href="#">Join the beta</a>
+    <form id="waitlist" novalidate>
+      <label for="email" style="position:absolute;left:-9999px">Email</label>
+      <input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required>
+      <button class="cta" type="submit">Notify me</button>
+    </form>
+    <p class="done" id="notify-done" role="status" aria-live="polite"></p>
+  </dialog>
+</main>
+
+
+<script>
+/* Settings: flip BETA_OPEN to true once Apple approves the beta.
+   WAITLIST_ENDPOINT: a form backend URL (Formspree, Getform, Basin...). Empty = the form opens an email instead. */
+const BETA_OPEN = false;
+const TESTFLIGHT = "https://testflight.apple.com/join/E6KAyDW1";
+const WAITLIST_ENDPOINT = "";
+const CONTACT = "c.z.tavi@gmail.com";
+
+/* Beta state */
+document.querySelectorAll("[data-beta]").forEach(a => {
+  if (BETA_OPEN) { a.href = TESTFLIGHT; a.rel = "noopener"; }
+});
+document.querySelectorAll("[data-beta-sub]").forEach(p => {
+  p.textContent = BETA_OPEN ? "Free on TestFlight. For iPhone and Fitbit Air." : "The TestFlight beta opens soon. Leave your email for the link.";
+});
+if (!BETA_OPEN) document.querySelectorAll("[data-beta-end]").forEach(el => el.hidden = true);
+document.querySelector("[data-notify-label]").textContent = BETA_OPEN
+  ? "Get notified when it's on the App Store." : "The TestFlight beta opens soon. Get the link by email.";
+
+/* Reveals */
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+}), { threshold: 0.18 });
+document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+
+/* Hero: scrolling scrubs the film's glide. The phone starts tilted with its screen off and turns to face front;
+   on the last frame its screen wakes into the real app, and when it buzzes in the recording, the band shakes
+   and sends out rings. Scrolling back turns the screen off and tilts the phone away again. */
+(() => {
+  const hero = document.getElementById("hero"), media = hero.querySelector(".media"), scene = document.getElementById("scene");
+  const canvas = scene.querySelector(".reel"), ctx = canvas.getContext("2d");
+  const band = scene.querySelector(".band"), waves = scene.querySelector(".waves"), screen = scene.querySelector(".screen");
+  const tap = scene.querySelector("[data-shot=tap]"), pick = scene.querySelector("[data-shot=pick]"), copied = scene.querySelector("[data-shot=copied]");
+  const hint = document.getElementById("hint"), beats = [...hero.querySelectorAll(".beat")];
+  const copy = hero.querySelector(".hero-copy"), lines = [...copy.querySelectorAll(".wipe > span")];
+  const tryEl = document.getElementById("try"), foot = document.getElementById("foot"), stage = hero.querySelector(".stage");
+  const phone = matchMedia("(max-width: 860px)");
+  /* MIDS[i]: on frame i, the midpoint between the band's right edge and the phone's left edge, as a fraction of the
+     frame's width. It sits on the page centre, so band, words and phone stay symmetrical through the glide. */
+  const MIDS = [0.5058,0.5057,0.5055,0.5054,0.5051,0.5048,0.5045,0.5042,0.5039,0.5036,0.5032,0.5029,0.5025,0.5022,0.5019,0.5015,0.5011,0.5007,0.5003,0.4999,0.4994,0.499,0.4986,0.4983,0.4979,0.4975,0.4971,0.4967,0.4964,0.496,0.4956,0.4952,0.4949,0.4945,0.4942,0.4938,0.4933,0.493,0.4926,0.4923,0.4919,0.4915,0.4911,0.4908,0.4904,0.49,0.4896,0.4892,0.4889,0.4885,0.4882,0.4878,0.4875,0.4872,0.4869,0.4865,0.4862,0.4859,0.4856,0.4853,0.4849,0.4846,0.4843,0.484,0.4838,0.4835,0.4832,0.483,0.4828,0.4826,0.4825,0.4822,0.482,0.4818,0.4817,0.4814,0.4812,0.481,0.4808,0.4807,0.4805,0.4803,0.4802,0.48,0.4798,0.4796,0.4795,0.4793,0.4792,0.479,0.4789,0.4788,0.4786,0.4785,0.4784,0.4783,0.4782,0.4781,0.478,0.4779,0.4779,0.4779,0.4778,0.4778,0.4777,0.4777,0.4777,0.4777,0.4777,0.4777,0.4777,0.4777,0.4777,0.4778,0.4778,0.4778,0.4778,0.4777,0.4777,0.4777,0.4777,0.4777,0.4777,0.4777,0.4777,0.4778,0.4777,0.4777,0.4777,0.4777,0.4776,0.4775];
+  /* GLASS[i]: the phone screen's left and right edge on frame i. The phone turns in the film and its width changes;
+     each frame is remapped so the phone keeps its final width (glass 1151 to 1451) the whole way. */
+  const GLASS = [[1197.3,1458.4],[1196.9,1458.9],[1196.3,1459.3],[1195.6,1459.7],[1194.9,1460.3],[1194.0,1460.3],[1193.0,1460.3],[1192.3,1460.1],[1191.4,1460.0],[1190.6,1459.9],[1189.7,1459.9],[1188.7,1459.9],[1187.9,1460.4],[1187.0,1460.9],[1186.1,1461.4],[1185.3,1461.9],[1184.4,1462.4],[1183.6,1462.9],[1182.7,1463.1],[1182.0,1463.6],[1181.1,1464.0],[1180.1,1464.4],[1179.3,1464.9],[1178.4,1465.1],[1177.7,1465.4],[1176.9,1465.9],[1176.0,1466.1],[1175.3,1466.4],[1174.7,1466.6],[1174.0,1466.9],[1173.3,1467.1],[1172.4,1467.4],[1171.9,1467.6],[1171.1,1467.7],[1170.6,1467.9],[1169.9,1468.0],[1169.1,1468.0],[1168.6,1468.0],[1168.0,1468.0],[1167.4,1468.0],[1166.9,1468.0],[1166.1,1468.0],[1165.6,1468.0],[1165.1,1468.0],[1164.6,1468.0],[1164.0,1468.0],[1163.4,1468.0],[1163.0,1468.0],[1162.6,1468.0],[1162.1,1468.0],[1161.6,1468.0],[1161.1,1468.0],[1160.9,1468.0],[1160.4,1467.9],[1160.0,1467.7],[1159.6,1467.6],[1159.1,1467.4],[1158.9,1467.3],[1158.6,1467.1],[1158.1,1466.9],[1157.9,1466.7],[1157.6,1466.6],[1157.3,1466.4],[1157.0,1466.3],[1156.7,1466.0],[1156.4,1465.7],[1156.1,1465.6],[1155.9,1465.3],[1155.6,1465.0],[1155.4,1464.7],[1155.1,1464.3],[1154.9,1464.0],[1154.6,1463.6],[1154.4,1463.1],[1154.3,1462.9],[1154.0,1462.4],[1153.7,1462.7],[1153.6,1462.4],[1153.4,1462.0],[1153.3,1461.7],[1153.0,1461.3],[1152.7,1461.6],[1152.6,1461.3],[1152.4,1460.1],[1152.3,1459.7],[1152.1,1459.3],[1152.0,1458.9],[1152.0,1458.6],[1152.0,1457.4],[1151.9,1457.0],[1151.7,1456.6],[1151.6,1456.1],[1151.4,1455.9],[1151.3,1455.4],[1151.1,1455.0],[1151.0,1454.6],[1151.0,1454.1],[1151.0,1453.9],[1151.0,1453.6],[1151.0,1453.1],[1151.0,1452.9],[1151.0,1452.6],[1151.0,1452.4],[1151.0,1452.3],[1151.0,1452.1],[1151.0,1451.9],[1151.0,1451.7],[1151.0,1451.6],[1151.0,1451.4],[1151.0,1451.3],[1151.0,1451.1],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0],[1151.0,1451.0]];
+  const N = MIDS.length, FW = 1600, FH = 916, ZOOM = 1.06, TEXT = 0.36;
+  /* Scroll fractions: the glide plays over the first GLIDE of the track, then the words change on the lit phone. */
+  /* Beats: no screen, never reach your wrist (the phone turns and wakes), tap to buzz, any notification,
+     set up in Shortcuts, your Air buzzes. Each beat starts at its fraction and has its own shot on the phone. */
+  const GLIDE = 0.164, STARTS = [0, 0.074, 0.205, 0.344, 0.483, 0.63];
+  /* Then the stage stays pinned: at SWAP band, phone and words fade out and the button fades in on the same spot. */
+  const SWAP = 0.83, FOOT = [0.93, 0.99];
+  const SHOTS = [tap, tap, tap, pick, copied, tap], BUZZ = new Set([2, 5]);
+  /* The tap recording is frozen before 1.4 s and after 5.7 s, so only its moving stretches loop: idle pulses
+     1.45 to 2.15 s, and on the buzz beats 1.4 to 5.6 s with the tap landing at 2.55 s. */
+  const IDLE_FROM = 1.45, IDLE_END = 2.15, TAP_AT = 2.55, LOOP_FROM = 1.4, LOOP_END = 5.6, EVERY = LOOP_END - LOOP_FROM;
+  let s = 1, cw = 0, ch = 0, beat = -1, raf = 0, visible = false, lit = false;
+  let cur = 0, target = 0, shown = -1, placedAt = -1;
+  let lastT = 0, prevT = 0, movedAt = 0, beatAt = 0, lastK = -1, askedAt = 0, top = 0, footH = 0;
+
+  /* Frames: the size for this screen, the first and last frame first, then coarse to fine so any scroll has a near frame. */
+  /* The full-size frames everywhere: on a phone the shot is zoomed in on the phone, so the small set looks soft. */
+  const dir = "d";
+  const src = i => `assets/reel/${dir}/f${String(i + 1).padStart(3, "0")}.jpg`;
+  const frames = new Array(N);
+  const order = [0, N - 1];
+  for (const step of [16, 8, 4, 2, 1]) for (let i = 0; i < N; i += step) if (!order.includes(i)) order.push(i);
+  let next = 0;
+  const pump = () => {
+    if (next >= order.length) return;
+    const i = order[next++], im = new Image();
+    im.decoding = "async";
+    im.onload = () => { im.ok = true; if (!canvas.dataset.sized) { canvas.width = im.naturalWidth; canvas.height = im.naturalHeight; canvas.dataset.sized = 1; } shown = -1; draw(); pump(); };
+    im.onerror = pump;
+    im.src = src(i); frames[i] = im;
+  };
+  for (let k = 0; k < 6; k++) pump();
+  band.style.backgroundImage = `url("${src(N - 1)}")`;
+
+  const nearest = i => {
+    for (let d = 0; d < N; d++) {
+      if (frames[i - d] && frames[i - d].ok) return i - d;
+      if (frames[i + d] && frames[i + d].ok) return i + d;
+    }
+    return -1;
+  };
+
+  const fit = () => {
+    if (phone.matches) { copy.style.cssText = ""; return; }
+    const w = TEXT * FW * s, x = (cw - w) / 2;
+    copy.style.setProperty("--gap-x", x + "px"); copy.style.setProperty("--gap-w", w + "px");
+    copy.style.setProperty("--gap-fs", "80px");
+    const widest = Math.max(...lines.map(l => l.getBoundingClientRect().width));
+    copy.style.setProperty("--gap-fs", Math.min(80, Math.floor(80 * w / widest)) + "px");
+  };
+  /* Phones: the camera holds on the band (frame x 300), then pans to the phone (x 1302) over the middle of the glide.
+     The phone's top (frame y 56) sits just under the words. */
+  const place = i => {
+    placedAt = i;
+    let x, y;
+    if (phone.matches) {
+      const u = Math.min(Math.max((i / (N - 1) - 0.12) / 0.66, 0), 1), e = u * u * (3 - 2 * u);
+      x = cw / 2 - (300 + 1002 * e) * s; y = top + 6 - 56 * s;
+    } else {
+      const w = FW * s, h = FH * s;
+      x = Math.min(0, Math.max(cw - w, cw / 2 - MIDS[i] * w)); y = (ch - h) * (h > ch ? 0.6 : 0.45);
+    }
+    scene.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+  };
+  const layout = () => {
+    const r = media.getBoundingClientRect(); cw = r.width; ch = r.height;
+    fit();
+    footH = foot.offsetHeight;
+    if (phone.matches) {
+      /* Phone body: 330 x 750 frame px. As big as the space under the words allows, with a side margin. */
+      top = copy.getBoundingClientRect().height;
+      s = Math.min(Math.max(Math.min((ch - top - 18) / 750, (cw - 44) / 330), 0.4), 1.3);
+    } else {
+      /* Fill the window, but never so big that band or phone leaves it: the phone's far edge is up to 712 frame px
+         from the centred midpoint. On narrow windows the frame is then shorter than the screen and its edges fade. */
+      const fitW = (cw / 2 - Math.max(24, cw * 0.04)) / 712;
+      s = Math.max(Math.min(Math.max(cw / FW, ch / FH) * ZOOM, fitW), cw / FW);
+    }
+    place(Math.max(shown, 0));
+    if (!reduce) onScroll();
+  };
+
+  /* Draws frame i with the phone held at its final width: background left of the phone, then the phone itself
+     (frame edge, glass, side buttons) stretched onto the final glass span, then background to the right. */
+  const paint = (im, i) => {
+    const k = canvas.width / FW, H = canvas.height, [g0, g1] = GLASS[i], L = 1000, P = 12, S = 40;
+    const cols = [[0, L, 0, L], [L, g0 - P, L, 1151 - P], [g0 - P, g1, 1151 - P, 1451], [g1, g1 + S, 1451, 1451 + S], [g1 + S, FW, 1451 + S, FW]];
+    for (const [a, b, c, d] of cols) ctx.drawImage(im, a * k, 0, (b - a) * k, H, c * k, 0, (d - c) * k, H);
+  };
+  const draw = () => {
+    const i = nearest(Math.round(cur));
+    if (i < 0 || i === shown) return;
+    shown = i;
+    paint(frames[i], i);
+    if (i !== placedAt) place(i);
+    const end = i === N - 1;
+    scene.classList.toggle("end", end);
+    setLit(end && Math.abs(target - cur) < 0.6);
+  };
+
+  const restart = el => { el.classList.remove("buzz"); void el.getBoundingClientRect(); el.classList.add("buzz"); };
+  /* The buzz ripple from the launch film: 3 halftone dot waves leave the band, r 58 to 290 frame px, line 6 to 1.7,
+     0.9 s ease-out, opacity 0.95 to 0, 0.12 s apart. Dots sit on a fixed hex grid and light up as a front passes. */
+  const wctx = waves.getContext("2d"), WX = 300, WY = 335, SP = 14, DOT = 2.8, PTS = [], RIPPLES = [];
+  for (let row = 0, y = -SP; y < 676 + SP; row++, y += SP * 0.866)
+    for (let x = (row % 2) * SP * 0.5 - SP; x < 640 + SP; x += SP) {
+      const h = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+      PTS.push([x, y, (h - Math.floor(h) - 0.5) * 7.5]);
+    }
+  let wavesDirty = false, waveScale = 0;
+  const drawWaves = now => {
+    const k = Math.min(devicePixelRatio || 1, 2) * (waves.getBoundingClientRect().width / 640 || s);
+    if (k !== waveScale) { waveScale = k; waves.width = Math.round(640 * k); waves.height = Math.round(676 * k); }
+    while (RIPPLES.length && now - RIPPLES[0] > 1300) RIPPLES.shift();
+    if (!RIPPLES.length) { if (wavesDirty) { wctx.setTransform(1, 0, 0, 1, 0, 0); wctx.clearRect(0, 0, waves.width, waves.height); wavesDirty = false; } return; }
+    const live = [];
+    RIPPLES.forEach((t0, n) => {
+      for (let i = 0; i < 3; i++) {
+        const u = (now - t0) / 1000 - i * 0.12;
+        if (u <= 0 || u >= 0.9) continue;
+        const e = 1 - (1 - u / 0.9) ** 2;
+        live.push({ r: 58 + 232 * e, sw: 6 - 4.3 * e, o: u < 0.02 ? 0.95 * u / 0.02 : 0.95 * (1 - (u - 0.02) / 0.88), ph: (n * 3 + i) * 2.399 });
+      }
+    });
+    wctx.setTransform(k, 0, 0, k, 0, 0); wctx.clearRect(0, 0, 640, 676); wavesDirty = true;
+    wctx.fillStyle = "#111";
+    for (const [x, y, j] of PTS) {
+      let I = 0;
+      for (const c of live) {
+        const dx = x - WX, dy = y - WY, q = (Math.hypot(dx, dy) + j - c.r) / (7.5 + c.sw * 2.7);
+        if (q > 2.6 || q < -2.6) continue;
+        I = Math.max(I, c.o * (0.72 + 0.28 * Math.sin(3 * Math.atan2(dy, dx) + c.ph)) * Math.exp(-q * q));
+      }
+      if (I < 0.04) continue;
+      wctx.globalAlpha = Math.min(1, I * 1.1);
+      wctx.beginPath(); wctx.arc(x, y, DOT * (0.55 + 0.45 * Math.min(1, I)), 0, 6.2832); wctx.fill();
+    }
+    wctx.globalAlpha = 1;
+  };
+  const buzz = () => { restart(band); RIPPLES.push(performance.now()); };
+  const seek = (v, t) => { if (v.readyState) v.currentTime = t; else v.addEventListener("loadedmetadata", () => { v.currentTime = t; }, { once: true }); };
+  const shot = () => SHOTS[Math.max(beat, 0)];
+  const playCurrent = () => {
+    const v = shot();
+    [tap, pick].forEach(el => { if (el !== v || !lit) el.pause(); });
+    if (v === copied) return;
+    if (lit && visible && !reduce) v.play().catch(() => {});
+  };
+  /* Starts the right recording from the top of its stretch, each time the screen wakes or the beat changes while on */
+  const wake = () => {
+    if (reduce) return;
+    const v = shot();
+    if (v === pick) seek(pick, 0);
+    else if (v === tap && BUZZ.has(beat)) { seek(tap, LOOP_FROM); prevT = LOOP_FROM; beatAt = movedAt = performance.now(); lastK = -1; }
+    else if (v === tap) seek(tap, IDLE_FROM);
+    playCurrent();
+  };
+  const setLit = v => {
+    if (v === lit) return;
+    lit = v; screen.classList.toggle("lit", v);
+    if (v) wake(); else { tap.pause(); pick.pause(); }
+  };
+
+  const setBeat = b => {
+    if (b === beat) return;
+    beats.forEach(el => el.classList.toggle("first", beat < 0)); beat = b;
+    beats.forEach((el, i) => { el.classList.toggle("on", i === b); el.classList.toggle("off", i < b); el.inert = i !== b; });
+    [tap, pick, copied].forEach(el => el.classList.toggle("on", el === SHOTS[b]));
+    if (lit) wake();
+  };
+
+  /* Keeps the recording on the right stretch for the beat and fires the band's buzz on the tap. */
+  const video = () => {
+    if (!lit || shot() !== tap) return;
+    const t = tap.currentTime, now = performance.now();
+    /* Only small forward steps count as playback, so a seek (or a seek that fails) never looks like progress. */
+    if (!tap.seeking && lastT >= 0 && t > lastT && t - lastT < 0.5) movedAt = now;
+    lastT = tap.seeking ? -1 : t;
+    /* The browser can pause a muted video on its own (power saving, tab switch): ask it to play again, once a second. */
+    if (tap.paused && visible && now - askedAt > 1000) { askedAt = now; tap.play().catch(() => {}); }
+    if (tap.paused || tap.error || now - movedAt > 800) {
+      /* No autoplay (Low Power Mode) or the video stalls: keep the band buzzing on the same rhythm anyway. */
+      if (!BUZZ.has(beat)) return;
+      const e = (now - beatAt) / 1000 - (TAP_AT - LOOP_FROM), k = Math.floor(e / EVERY);
+      if (e >= 0 && k !== lastK) { lastK = k; buzz(); }
+      return;
+    }
+    if (tap.seeking) return;
+    if (!BUZZ.has(beat) && (t > IDLE_END || t < IDLE_FROM - 0.1)) tap.currentTime = IDLE_FROM;
+    if (BUZZ.has(beat)) {
+      if (t < LOOP_FROM - 0.1 || t >= LOOP_END) { tap.currentTime = LOOP_FROM; prevT = LOOP_FROM; return; }
+      else if (prevT < TAP_AT && t >= TAP_AT) { lastK = Math.floor(((now - beatAt) / 1000 - (TAP_AT - LOOP_FROM)) / EVERY); buzz(); }
+    }
+    prevT = tap.currentTime;
+  };
+
+  const loop = () => {
+    raf = requestAnimationFrame(loop);
+    const d = target - cur;
+    cur = Math.abs(d) < 0.05 ? target : cur + d * 0.2;
+    draw();
+    if (shown === N - 1) setLit(Math.abs(target - cur) < 0.6);
+    video();
+    drawWaves(performance.now());
+  };
+
+  const progress = () => {
+    const r = hero.getBoundingClientRect(), span = r.height - innerHeight;
+    return span > 0 ? Math.min(Math.max(-r.top / span, 0), 1) : 1;
+  };
+  const onScroll = () => {
+    const p = progress();
+    target = Math.min(1, p / GLIDE) * (N - 1);
+    setBeat(STARTS.findLastIndex(x => p >= x));
+    hint.classList.toggle("gone", p > 0.02);
+    /* Past SWAP the hero fades out and then the button fades in, on a timer rather than the scroll, so the page
+       can never rest half way between the two. */
+    const on = p >= SWAP;
+    stage.classList.toggle("swap", on);
+    tryEl.classList.toggle("in", on); tryEl.classList.toggle("live", on);
+    tryEl.inert = !on; copy.inert = on;
+    /* Last stretch: the footer slides up and the button section moves up by half its height, to stay centred above it. */
+    const g = Math.min(Math.max((p - FOOT[0]) / (FOOT[1] - FOOT[0]), 0), 1), e = g * g * (3 - 2 * g);
+    foot.style.transform = `translateY(${(1 - e) * 101}%)`;
+    tryEl.style.transform = e ? `translateY(${-e * footH / 2}px)` : "";
+    foot.inert = g < 0.5;
+  };
+
+  new IntersectionObserver(([e]) => {
+    visible = e.isIntersecting;
+    if (visible && !reduce) { playCurrent(); if (!raf) raf = requestAnimationFrame(loop); }
+    else { tap.pause(); pick.pause(); cancelAnimationFrame(raf); raf = 0; }
+  }).observe(hero);
+
+  if (reduce) { hero.after(tryEl); tryEl.after(foot); tryEl.classList.add("in"); hero.classList.add("static"); cur = target = N - 1; setBeat(STARTS.length - 1); }
+  else { addEventListener("scroll", onScroll, { passive: true }); onScroll(); cur = target; }
+  new ResizeObserver(layout).observe(media);
+  document.fonts.ready.then(layout);
+  layout();
+})();
+
+/* Waitlist */
+const form = document.getElementById("waitlist"), done = document.getElementById("notify-done");
+form.addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const email = form.email.value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { done.textContent = "That email doesn't look right."; form.email.focus(); return; }
+  if (!WAITLIST_ENDPOINT) {
+    location.href = `mailto:${CONTACT}?subject=${encodeURIComponent("AirBuzz waitlist")}&body=${encodeURIComponent("Add me: " + email)}`;
+    done.textContent = "Your mail app opened. Hit send and you're on the list.";
+    return;
+  }
+  done.textContent = "Adding you...";
+  try {
+    const r = await fetch(WAITLIST_ENDPOINT, { method: "POST", headers: { "Accept": "application/json" }, body: new FormData(form) });
+    if (!r.ok) throw new Error(r.status);
+    form.reset(); done.textContent = "You're on the list. We'll email you once.";
+  } catch { done.textContent = "That didn't go through. Try again in a moment."; }
+});
+
+/* The AirBuzz mark: a solid pill in a halftone dot field, ported from the app (PillField.swift).
+   Idle: two full rings leave the pill on a slow beat and fade as they grow. Tap: three quicker rings. */
+function mulberry(seed) {
+  let a = seed >>> 0;
+  return (lo, hi) => {
+    a = (a + 0x6D2B79F5) >>> 0; let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return lo + (hi - lo) * (((t ^ (t >>> 14)) >>> 0) / 4294967296);
+  };
+}
+const F = { pillH: 0.22, pillR: 0.12, spacing: 0.030, gap: 1.75, falloff: 0.45, reach: 0.45, floor: 0.10 };
+const DOTS = (() => {
+  const sp = F.spacing, ext = 1.05, n = Math.floor(ext / sp) + 3, out = [];
+  const cap = (x, y) => { const yy = Math.min(Math.max(y, -F.pillH), F.pillH); return Math.hypot(x, y - yy) - F.pillR; };
+  for (let j = -n; j <= n; j++) for (let i = -2 * n; i <= 2 * n; i++) {
+    const x = (i + 0.5 * (((j % 2) + 2) % 2)) * sp, y = j * sp * Math.sqrt(3) / 2;
+    if (Math.abs(x) >= ext || Math.abs(y) >= ext) continue;
+    const dist = cap(x, y), lin = Math.min(Math.max(1 - dist / F.falloff, 0), 1);
+    const base = Math.pow(Math.min(Math.max(1 - Math.pow(1 - lin, 1.25), 0), 1), 1.6);
+    if (dist <= 0.36 * sp + F.gap * sp || base <= 0.05) continue;
+    const v = Math.min(Math.max((dist - 0.15) / 0.30, 0), 1);
+    out.push({ x, y, dist, theta: Math.atan2(y * 0.55, x), base, env: 1 - v * v * (3 - 2 * v) });
+  }
+  return out;
+})();
+function pulse(start, angle, spread, width, duration) { return { start, angle, spread, width, duration }; }
+function intensity(p, d, t) {
+  const u = (t - p.start) / p.duration; if (u <= 0 || u >= 1) return 0;
+  const c = F.reach * (1 - Math.pow(1 - u, 1.5)), fade = 1.4 * Math.pow(1 - u, 0.9) * Math.min(1, u * 20);
+  let da = (d.theta - p.angle) % (2 * Math.PI); if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+  const r = (d.dist - c) / p.width, a = da / p.spread;
+  return fade * Math.exp(-r * r) * Math.exp(-a * a);
+}
+function makeMark(canvas, hit) {
+  const ctx = canvas.getContext("2d"), taps = [];
+  let w = 0, visible = false, raf = 0;
+  const size = () => {
+    const r = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+    w = r.width; canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  /* Idle: on every beat two full rings leave the pill and fade as they grow, like the band's buzz. */
+  const pulses = t => {
+    const out = [], period = 1.6, k = Math.floor(t / period);
+    for (let beat = k - 1; beat <= k; beat++)
+      for (let i = 0; i < 2; i++) out.push(pulse(beat * period + i * 0.22, 0, 1e3, 0.075 - i * 0.012, 1.7));
+    for (const t0 of taps) {
+      if (t - t0 > 1.7) continue;
+      const rnd = mulberry(Math.floor(t0 * 1000));
+      for (let i = 0; i < 3; i++) out.push(pulse(t0 + i * 0.12, 0, 1e3, rnd(0.08, 0.10) - i * 0.015, 1.3));
+    }
+    return out.filter(p => t > p.start && t < p.start + p.duration);
+  };
+  const levels = 24;
+  const draw = now => {
+    const t = now / 1000, half = w / 2, ps = reduce ? [] : pulses(t), r = 0.36 * F.spacing * half;
+    ctx.clearRect(0, 0, w, w);
+    const paths = Array.from({ length: levels + 1 }, () => new Path2D());
+    const floor = reduce ? 0.3 : F.floor;
+    for (const d of DOTS) {
+      let p = 0; for (const q of ps) p += intensity(q, d, t);
+      const op = Math.max(floor * d.base, Math.min(Math.max(p, 0), 1) * d.env);
+      if (op < 0.03) continue;
+      const lv = Math.min(levels, Math.round(op * levels)), cx = half + d.x * half, cy = half - d.y * half;
+      paths[lv].moveTo(cx + r, cy); paths[lv].arc(cx, cy, r, 0, Math.PI * 2);
+    }
+    for (let lv = 1; lv <= levels; lv++) { ctx.fillStyle = `rgba(17,17,17,${lv / levels})`; ctx.fill(paths[lv]); }
+    const pw = 2 * F.pillR * half, ph = 2 * (F.pillH + F.pillR) * half;
+    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.roundRect(half - pw / 2, half - ph / 2, pw, ph, pw / 2); ctx.fill();
+  };
+  const shown = canvas.closest(".try");
+  const loop = now => { if (shown.classList.contains("in")) draw(now); raf = visible && !reduce ? requestAnimationFrame(loop) : 0; };
+  new IntersectionObserver(es => {
+    visible = es[0].isIntersecting;
+    if (visible && !raf) raf = requestAnimationFrame(loop);
+  }).observe(canvas);
+  new ResizeObserver(() => { size(); draw(performance.now()); }).observe(canvas);
+  hit.addEventListener("click", () => {
+    const t = performance.now() / 1000; taps.push(t + 0.03);
+    while (taps.length > 6) taps.shift();
+    if (navigator.vibrate) navigator.vibrate(60);
+    if (reduce) return;
+    canvas.animate([{ transform: "scale(1)" }, { transform: "scale(.96)" }, { transform: "scale(1)" }], { duration: 260, easing: "ease-out" });
+    if (!raf) raf = requestAnimationFrame(loop);
+  });
+}
+makeMark(document.getElementById("field"), document.getElementById("field-hit"));
+
+/* The button: it buzzes, then the popup asks for an email (or hands over the TestFlight link once the beta is open) */
+(() => {
+  const pop = document.getElementById("pop"), hit = document.getElementById("field-hit");
+  let timer = 0;
+  hit.addEventListener("click", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { if (!pop.open) { pop.showModal(); if (!BETA_OPEN && matchMedia("(hover: hover)").matches) pop.querySelector("input").focus(); } }, reduce ? 0 : 650);
+  });
+  pop.querySelector("[data-close]").addEventListener("click", () => pop.close());
+  pop.addEventListener("click", e => { if (e.target === pop) { const r = pop.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) pop.close(); } });
+})();
+</script>
+</body>
+</html>
