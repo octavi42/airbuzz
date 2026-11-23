@@ -186,7 +186,7 @@ img, video, canvas { display: block; max-width: 100%; }
 .social a:hover { transform: translateY(-1px); border-color: var(--ink-2); }
 .social svg { width: 16px; height: 16px; fill: currentColor; }
 
-/* The popup the button opens: an email for the beta link */
+/* TestFlight download popup */
 .pop {
   width: min(440px, calc(100vw - 32px)); padding: 34px 28px 22px; border: 0; border-radius: 28px; background: #fff; color: var(--ink);
   text-align: center; box-shadow: 0 40px 80px -30px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.06);
@@ -201,14 +201,6 @@ img, video, canvas { display: block; max-width: 100%; }
 .pop-title { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
 .pop-text { margin: 10px 0 22px; font-size: 15px; color: var(--ink-2); }
 .pop > .cta { margin-bottom: 18px; }
-.pop form { display: flex; gap: 8px; padding: 6px; border-radius: 32px; background: var(--set); border: 1px solid var(--line); }
-.pop input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 0 14px; height: 44px; font: 400 16px "Inter", sans-serif; color: var(--ink); }
-.pop input:focus-visible { outline: none; }
-.pop form:focus-within { border-color: var(--ink-2); background: #fff; }
-.pop input::placeholder { color: #9a9aa0; }
-.pop form .cta { height: 44px; padding: 0 20px; border-radius: 22px; font-size: 15px; border: 0; cursor: pointer; }
-.pop .done { margin: 12px 0 0; font-size: 15px; }
-.pop .done:empty { display: none; }
 
 /* Hero step lines */
 .hero-copy .body { margin: 18px auto 0; font-size: clamp(16px, 1.15vw, 19px); max-width: 26em; }
@@ -324,38 +316,13 @@ footer {
   <dialog class="pop" id="pop" aria-labelledby="pop-title">
     <button class="pop-x" type="button" aria-label="Close" data-close>&times;</button>
     <p class="pop-title" id="pop-title">Get AirBuzz</p>
-    <p class="pop-text" data-notify-label>The TestFlight beta opens soon. Get the link by email.</p>
-    <a class="cta" data-beta data-beta-end href="#">Join the beta</a>
-    <form id="waitlist" novalidate>
-      <label for="email" style="position:absolute;left:-9999px">Email</label>
-      <input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required>
-      <input name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
-      <button class="cta" type="submit">Notify me</button>
-    </form>
-    <p class="done" id="notify-done" role="status" aria-live="polite"></p>
+    <p class="pop-text">Free on TestFlight. For iPhone and Fitbit Air.</p>
+    <a class="cta" href="https://testflight.apple.com/join/E6KAyDW1" rel="noopener">Join the beta</a>
   </dialog>
 </main>
 
 
 <script>
-/* Settings: flip BETA_OPEN to true once Apple approves the beta.
-   WAITLIST_ENDPOINT: the waitlist function (~/Dev/airbuzz-waitlist, Vercel). Empty = the form opens an email instead. */
-const BETA_OPEN = false;
-const TESTFLIGHT = "https://testflight.apple.com/join/E6KAyDW1";
-const WAITLIST_ENDPOINT = "https://airbuzz-waitlist.vercel.app/api/waitlist";
-const CONTACT = "c.z.tavi@gmail.com";
-
-/* Beta state */
-document.querySelectorAll("[data-beta]").forEach(a => {
-  if (BETA_OPEN) { a.href = TESTFLIGHT; a.rel = "noopener"; }
-});
-document.querySelectorAll("[data-beta-sub]").forEach(p => {
-  p.textContent = BETA_OPEN ? "Free on TestFlight. For iPhone and Fitbit Air." : "The TestFlight beta opens soon. Leave your email for the link.";
-});
-if (!BETA_OPEN) document.querySelectorAll("[data-beta-end]").forEach(el => el.hidden = true);
-document.querySelector("[data-notify-label]").textContent = BETA_OPEN
-  ? "Get notified when it's on the App Store." : "The TestFlight beta opens soon. Get the link by email.";
-
 /* Reveals */
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const io = new IntersectionObserver(es => es.forEach(e => {
@@ -622,25 +589,6 @@ document.querySelectorAll(".reveal").forEach(el => io.observe(el));
   layout();
 })();
 
-/* Waitlist */
-const form = document.getElementById("waitlist"), done = document.getElementById("notify-done");
-form.addEventListener("submit", async ev => {
-  ev.preventDefault();
-  const email = form.email.value.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { done.textContent = "That email doesn't look right."; form.email.focus(); return; }
-  if (!WAITLIST_ENDPOINT) {
-    location.href = `mailto:${CONTACT}?subject=${encodeURIComponent("AirBuzz waitlist")}&body=${encodeURIComponent("Add me: " + email)}`;
-    done.textContent = "Your mail app opened. Hit send and you're on the list.";
-    return;
-  }
-  done.textContent = "Adding you...";
-  try {
-    const r = await fetch(WAITLIST_ENDPOINT, { method: "POST", headers: { "Accept": "application/json" }, body: new FormData(form) });
-    if (!r.ok) throw new Error(r.status);
-    form.reset(); done.textContent = "You're on the list. We'll email you once.";
-  } catch { done.textContent = "That didn't go through. Try again in a moment."; }
-});
-
 /* The AirBuzz mark: a solid pill in a halftone dot field, ported from the app (PillField.swift).
    Idle: two full rings leave the pill on a slow beat and fade as they grow. Tap: three quicker rings. */
 function mulberry(seed) {
@@ -729,13 +677,20 @@ function makeMark(canvas, hit) {
 }
 makeMark(document.getElementById("field"), document.getElementById("field-hit"));
 
-/* The button: it buzzes, then the popup asks for an email (or hands over the TestFlight link once the beta is open) */
+/* Open from the buzz button or a tap outside other controls. */
 (() => {
   const pop = document.getElementById("pop"), hit = document.getElementById("field-hit");
   let timer = 0;
+  const openPopup = () => { if (!pop.open) pop.showModal(); };
   hit.addEventListener("click", () => {
     clearTimeout(timer);
-    timer = setTimeout(() => { if (!pop.open) { pop.showModal(); if (!BETA_OPEN && matchMedia("(hover: hover)").matches) pop.querySelector("input").focus(); } }, reduce ? 0 : 650);
+    timer = setTimeout(openPopup, reduce ? 0 : 650);
+  });
+  document.addEventListener("click", event => {
+    if (event.defaultPrevented || event.target.closest("dialog, button, a, input, select, textarea, label, summary, [role='button'], [role='link'], [contenteditable]")) return;
+    if (window.getSelection()?.toString()) return;
+    clearTimeout(timer);
+    openPopup();
   });
   pop.querySelector("[data-close]").addEventListener("click", () => pop.close());
   pop.addEventListener("click", e => { if (e.target === pop) { const r = pop.getBoundingClientRect();
